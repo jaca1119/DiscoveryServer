@@ -52,6 +52,6 @@ workflows:
     jobs:
       - maven/test:
           executor: java-version
-      - push_docer:
+      - push_docker:
           requires:
             - maven/test
