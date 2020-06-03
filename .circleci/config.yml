@@ -8,8 +8,50 @@ executors:
     docker:
       - image: 'cimg/openjdk:11.0.7'
 
+jobs:
+  push_docker:
+    machine:
+      image: ubuntu-1604:201903-01
+    environment:
+      IMAGE_NAME=discovery_service
+    steps:
+      - checkout
+      - run:
+          name: Generate Cache Checksum
+          command: find . -name 'pom.xml' | sort | xargs cat > /tmp/maven_cache_seed
+      - restore_cache:
+          key: maven-{{ checksum "/tmp/maven_cache_seed" }}
+      - run:
+          name: Update to Java11
+          command: |
+            sudo add-apt-repository ppa:openjdk-r/ppa
+            sudo apt-get update
+            sudo apt-get install openjdk-11-jdk
+            echo 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64' >> $BASH_ENV
+      - run:
+          name: Set TAG env
+          command: echo 'export TAG=0.1.$CIRCLE_BUILD_NUM' >> $BASH_ENV
+      - run:
+          name: Maven package
+          command: mvn clean package -DskipTests
+      - run:
+          name: Build docker file
+          command: |
+            docker build -f Dockerfile -t jaca1119/$IMAGE_NAME:$TAG .
+            echo "$DOCKER_PASS" | docker login -u $DOCKER_USER --password-stdin
+            docker push jaca1119/$IMAGE_NAME:$TAG
+      - add_ssh_keys:
+          fingerprints:
+            - $FINGERPRINT
+      - run:
+          name: Execute script
+          command: ssh $USER@$HOST "$COMMAND $IMAGE_NAME:$TAG $IMAGE_NAME 1111 1111"
+
 workflows:
   maven_test:
     jobs:
       - maven/test:
           executor: java-version
+      - push_docer:
+          requires:
+            - maven/test
