@@ -1,0 +1,34 @@
+version: "3"
+
+services:
+        discovery:
+                image: discovery_service:working
+                ports:
+                        - 1111:1111
+                networks:
+                        - microservices
+        gateway:
+                image: api_gateway:working
+                ports:
+                        - 80:8080
+                environment:
+                        - DISCOVERY=http://discovery:1111/eureka
+                depends_on:
+                        - discovery
+                networks:
+                        - microservices
+        map:
+                image: corona-map:working
+                ports:
+                        - 5000:5000
+                environment:
+                        - DISCOVERY=http://discovery:1111/eureka
+                env_file:
+                        - env_map.env
+                depends_on:
+                        - discovery
+                        - gateway
+                networks:
+                        - microservices
+networks:
+        microservices:
